@@ -89,12 +89,15 @@ if __name__ == '__main__':
     #         #  title_params={'L':r'$L$', 'eps':r'$\epsilon$'},
     #         title_params = {'V':r'$|V|$'},
     #          plot_theory=True, filename_theory=ft)
-    f1 = 'Green_Function/Data/1D/TB/DoS_1D_TB_t1_GF.npz'
-    filenames = [f1]
-    ft = 'Green_Function/Data/1D/TB/DoS_1D_t1_theory.npz'
+    f1 = 'Data/1D/TB/DoS_1D_TB_t1_GF.npz'
+    f2 = 'Data/1D/TB/DoS_1D_AA_S2_t1_V0.9_GF.npz'
+    f3 = 'Data/1D/TB/DoS_1D_AA_S4_t1_V0.9_GF.npz'
+    f4 = 'Data/1D/TB/DoS_1D_AA_S6_t1_V0.9_GF.npz'
+    filenames = [f1, f2, f3, f4]
+    ft = 'Data/1D/TB/DoS_1D_t1_theory.npz'
     plot_dos(filenames=filenames, 
-             colors = ['b'], labels=['GF'],
-             ylim=(-0.1,3), xlim=None, plot_title=True, 
-             title_params = {'t':r'$t$', 'a':r'$a$'},
+             colors = ['b', 'gold', 'limegreen', 'cyan'], labels=['TB Chain', 'S2', 'S4', 'S6'],
+             ylim=(-0.2,5), xlim=None, plot_title=True, 
+             title_params = {'t':r'$t$', 'a':r'$a$', 'V':r'$V$'},
              xlab=r'$E$ / $t$',
              plot_theory=True, filename_theory=ft)
