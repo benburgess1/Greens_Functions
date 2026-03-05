@@ -14,5 +14,5 @@ def calc_dos_1D(E_vals, t=1, a=1, L=1,
 if __name__ == '__main__':
     f = 'Data/1D/TB/DoS_1D_t1_theory.npz'
     # k_vals = np.linspace(0, np.pi, 100)
-    E_vals = np.linspace(-2,2,100)[1:-1]
+    E_vals = np.linspace(-2,2,200)[1:-1]
     calc_dos_1D(E_vals=E_vals, t=1, a=1, L=1, save_filename=f)

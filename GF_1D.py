@@ -35,13 +35,13 @@ def G(k, E, Sigma_func=None, eps=1e-4, **kwargs):
 
 def Sigma_2(k, E, V=0.05, q=1, **kwargs):
     if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * beta / a
+        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
     return np.abs(V)**2 * (G0(k-q, E, eps=0, **kwargs) + G0(k+q, E, eps=0, **kwargs))
 
 
 def Sigma_4(k, E, V=0.05, q=1, **kwargs):
     if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * beta / a
+        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
     S2 = Sigma_2(k, E, V=V, q=q, **kwargs)
     S4 = np.abs(V)**4 * (G0(k-q, E, eps=0, **kwargs)**2 * G0(k-2*q, E, eps=0, **kwargs)
                          + G0(k+q, E, eps=0, **kwargs)**2 * G0(k+2*q, E, eps=0, **kwargs))
@@ -52,7 +52,7 @@ def Sigma_4(k, E, V=0.05, q=1, **kwargs):
 
 def Sigma_6(k, E, V=0.05, q=1, **kwargs):
     if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * beta / a
+        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
     S4 = Sigma_4(k, E, V=V, q=q, **kwargs)
     S6 = np.abs(V)**6 * (G0(k-q, E, eps=0, **kwargs)**2 * G0(k-2*q, E, eps=0, **kwargs)**2 * G0(k-3*q, E, eps=0, **kwargs)
                          + G0(k+q, E, eps=0, **kwargs)**2 * G0(k+2*q, E, eps=0, **kwargs)**2 * G0(k+3*q, E, eps=0, **kwargs)
@@ -97,10 +97,14 @@ def Sigma_4_2Component(k, E, V1=0.05, V2=0.025, q1=1, q2=1/np.sqrt(2), **kwargs)
 
 
 def adaptive_params(E, v0=v_free, A=0.1, B=1, eps_min=1e-5, L_max=1e5, L_min=1e4, 
-                    print_warnings=True, **kwargs):
+                    print_warnings=True, fix_epsilon=False, eps_fix=1e-4, **kwargs):
     # E = np.abs(E)
     # Choose epsilon based on upper bound set by E
-    eps = A * np.abs(E)
+    if not fix_epsilon:
+        eps = A * np.abs(E)
+    else:
+        # print('fixed')
+        eps = eps_fix
     if eps < eps_min:
         if print_warnings:
             print(f'\nWarning: eps = {eps:.3g} < eps_min = {eps_min:.3g}. Setting eps = eps_min.')
@@ -113,16 +117,16 @@ def adaptive_params(E, v0=v_free, A=0.1, B=1, eps_min=1e-5, L_max=1e5, L_min=1e4
         L = L_max
     elif L < L_min:
         if print_warnings:
-            print(f'Warning: low value L = {L:.3g} > L_min = {L_min:.3g}. Setting L = L_min.\n')
+            print(f'Warning: low value L = {L} < L_min = {L_min:.3g}. Setting L = L_min.\n')
         L = L_min
     return eps, L
         
 
-def generate_k_vals(L, kmax=None, n=2, C=0.1, q=1, **kwargs):
+def generate_k_vals(L, k_max=None, n=2, C=0.1, q=1, **kwargs):
     dk = 2 * np.pi / L
-    if kmax is None:
-        kmax = (n/2 + C) * q
-    k_vals = np.arange(-kmax, kmax, dk)
+    if k_max is None:
+        k_max = (n/2 + C) * q
+    k_vals = np.arange(-k_max, k_max, dk)
     return k_vals
 
 
@@ -131,22 +135,25 @@ def calc_dos_adaptive(E_vals, save=False, save_filename='Data.npz', **kwargs):
     for i, E in enumerate(tqdm(E_vals)):
         eps, L = adaptive_params(E, **kwargs)
         k_vals = generate_k_vals(L, **kwargs)
+        # print(f'E = {E}')
         # print(f'eps = {eps}, L = {L}')
         # print(f'N_k = {k_vals.size}')
         G_vals = G(k_vals, E, eps=eps, **kwargs)
         dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) / L
     if save:
-        np.savez(save_filename, E_vals=E_vals, dos_vals=dos_vals, k_vals=k_vals, **kwargs)
+        print('Saving -> ' + save_filename)
+        save_kwargs = {k: v for k, v in kwargs.items() if callable(v) is False}
+        np.savez(save_filename, E_vals=E_vals, dos_vals=dos_vals, k_vals=k_vals, **save_kwargs)
     return dos_vals
 
 
 
 
 if __name__ == '__main__':
-    # kmax = 1.1 * np.pi
+    # k_max = 1.1 * np.pi
     # L = 1e5
     # dk = 2*np.pi / L
-    # k_vals = np.arange(-kmax, kmax, dk)
+    # k_vals = np.arange(-k_max, k_max, dk)
     # k_vals = np.array([0])
     # f = 'Green_Function/Data/DoS_1D_AA_S4_V10.05_V20.025_GF.npz'
     # calc_dos(E_vals, k_vals, Sigma_func=Sigma_4_AA, L=L, V1=0.05, V2=0.025, eps=1e-4, save=True, save_filename=f)
@@ -154,7 +161,7 @@ if __name__ == '__main__':
     # f = 'Green_Function/Data/1D/DoS_1D_S2_V0.1_GF_adaptive_updated.npz'
     # f = 'Green_Function/Data/1D/DoS_1D_S2_V0.01_GF_adaptive.npz'
     # calc_dos_adaptive(E_vals=E_vals, Sigma_func=Sigma_2, save=True, save_filename=f, A=0.001, B=10, C=0.1, n=2, 
-    #                   V=0.01, kmax=1.1, L_max=2e5)
+    #                   V=0.01, k_max=1.1, L_max=2e5)
     E_vals = np.linspace(-2.75, 2.75, 1000)
     beta = 1 / np.sqrt(2)
     a = 1
@@ -165,5 +172,5 @@ if __name__ == '__main__':
                       E0=E_tb, v0=v_tb, t=t, a=a, 
                       Sigma_func=Sigma_2, V=V, beta=beta,
                       save=True, save_filename=f, 
-                      A=0.001, B=10, kmax=1.*np.pi, L_max=3e6, L_min=1e4,
+                      A=0.001, B=10, k_max=1.*np.pi, L_max=3e6, L_min=1e4,
                       print_warnings=False)
