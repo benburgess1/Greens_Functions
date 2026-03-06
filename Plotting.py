@@ -180,13 +180,38 @@ if __name__ == '__main__':
     f4 = 'Data/1D/TB/DoS_1D_AA_S4_t1_V0.5_GF_eps0.001.npz'
     f5 = 'Data/1D/TB/DoS_1D_AA_S4_t1_V0.5_GF_eps0.0001.npz'
     filenames = [f1, f2, f3, f4, f5]
+    # plot_dos(filenames=filenames, 
+    #         #  colors = ['c', 'm', 'b'], labels=['S6', 'S8', 'ED N=10000'],
+    #          colors = ['r', 'b', 'gold', 'limegreen', 'c'], labels=['ED N=10000', 'Adaptive', r'$\epsilon=0.01$', r'$\epsilon=0.001$', r'$\epsilon=0.0001$'],
+    #         #  colors = ['b', 'cyan', 'm'], labels=['TB Chain', 'S6', 'S8'],
+    #         #  colors = ['b', 'gold', 'cyan'], labels=['TB Chain', 'S8', 'S8 Precise'],
+    #          normalise_E=False, ylim=None, xlim=None, 
+    #          plot_title=True, title_params = {'V':r'$V$'},
+    #          xlab=r'$E$ / $t$',
+    #          plot_theory=False)
+    # f1 = 'Data/1D/TB/DoS_1D_AA_S2_t1_V0.3_GF_test.npz'
+    # f2 = 'Data/1D/TB/DoS_1D_AA_S2_t1_V0.3_GF.npz'
+    # f1 = 'Data/1D/TB/DoS_1D_TB_t1_GF_test.npz'
+    # f2 = 'Data/1D/TB/DoS_1D_TB_t1_GF.npz'
+    f1 = 'Data/1D/TB/DoS_1D_AA_S4_t1_V0.3_GF_test3.npz'
+    f2 = 'Data/1D/TB/DoS_1D_AA_S4_t1_V0.3_GF_test.npz'
+    f3 = 'Data/1D/TB/DoS_1D_AA_S4_t1_V0.3_GF.npz'
+    filenames = [f1,f2,f3]
+    # f1 = 'Data/1D/TB/DoS_1D_AA_S6_t1_V0.3_GF_test2.npz'
+    # f2 = 'Data/1D/TB/DoS_1D_AA_S6_t1_V0.3_GF_test.npz'
+    # f3 = 'Data/1D/TB/DoS_1D_AA_S6_t1_V0.3_GF.npz'
+    f1 = 'Data/1D/TB/DoS_1D_AA_S8_t1_V0.3_GF_test3.npz'
+    # f2 = 'Data/1D/TB/DoS_1D_AA_S8_t1_V0.3_GF_test2.npz'
+    f3 = 'Data/1D/TB/DoS_1D_AA_S8_t1_V0.3_GF.npz'
+    filenames = [f1, f3]
     plot_dos(filenames=filenames, 
             #  colors = ['c', 'm', 'b'], labels=['S6', 'S8', 'ED N=10000'],
-             colors = ['r', 'b', 'gold', 'limegreen', 'c'], labels=['ED N=10000', 'Adaptive', r'$\epsilon=0.01$', r'$\epsilon=0.001$', r'$\epsilon=0.0001$'],
+            #  colors = ['c', 'r', 'b'], labels=['New updated', 'New', 'Old'],
+             colors = ['r', 'b'], labels=['New', 'Old'],
             #  colors = ['b', 'cyan', 'm'], labels=['TB Chain', 'S6', 'S8'],
             #  colors = ['b', 'gold', 'cyan'], labels=['TB Chain', 'S8', 'S8 Precise'],
              normalise_E=False, ylim=None, xlim=None, 
-             plot_title=True, title_params = {'V':r'$V$'},
+             plot_title=True, title_params = {},
              xlab=r'$E$ / $t$',
              plot_theory=False)
     

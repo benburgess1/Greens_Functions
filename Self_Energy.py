@@ -4,6 +4,10 @@ from collections import Counter
 # import matplotlib.pyplot as plt
 
 def generate_permutations(N=6):
+    '''
+    Generate all permutations [+,-,+,+,-,...] for N binary choices,
+    corresponding to a momentum transfer by either +q or -q.
+    '''
     bin_array = np.zeros((2**N, N))
     for i in range(int(2**N)):
         b = np.array(list(np.binary_repr(i)), dtype=np.int16)
@@ -11,85 +15,102 @@ def generate_permutations(N=6):
             b = np.concatenate((np.zeros(N-b.size), b))
         bin_array[i,:] = b
     pm_array = (-1)**bin_array
-    # print(bin_array)
-    # print(pm_array)
     return pm_array.astype(np.int16)
 
-# arr = generate_permutations(N=2)
-# print(arr)
 
 def select_permutations(N=6):
-    pm_array = generate_permutations(N=N)
-    selected = np.zeros((1, N), dtype=np.int16)
-    for i in range(pm_array.shape[0]):
-        p = pm_array[i,:]
-        fail = False
-        for j in range(2,N):
-            if np.sum(p[:j]) == 0:
-                fail = True
-        if np.sum(p) != 0:
-            fail = True
-        if not fail:
-            selected = np.vstack((selected, p))
-    return selected[1:,:]
-
-# arr = select_permutations(N=2)
-# print(arr)
-
-# print(np.array([np.sum(arr[:,:i], axis=1, keepdims=False) for i in range(1,2)]).T)
-
-def sigma_contributions(permutations):
-    N = permutations.shape[1]
-    k_sum = np.array([np.sum(permutations[:,:i], axis=1, keepdims=False) for i in range(1,N)]).T
-    # counters = [frozenset(Counter(row).items()) for row in k_sum]
-    counter_counts = Counter(frozenset(Counter(row).items()) for row in k_sum)
-    result = [(dict(k), v) for k, v in counter_counts.items()]
-    # print(result)
-    return result
-
-# terms = sigma_contributions(arr)
-
-def build_sigma_N(terms, N, G0, q=1., V=0.05, **kwargs):
-    compiled = []
-    for d, s in terms:
-        ns = np.array(list(d.keys()))
-        ms = np.array(list(d.values()))
-        compiled.append((s, ns, ms))
-    # print(compiled)
-
-    if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
-
-    def calc_sigma(k, E, **kwargs):
-        S = 0.
-        for s, ns, ms in compiled:
-            # Vectorised: compute G0 for all n in this term at once
-            G0_vals = np.real(np.array([G0(k + n * q, E, eps=0, **kwargs) for n in ns]))
-            # print(G0_vals.shape)
-            S += s * np.prod(G0_vals ** ms[:, None], axis=0)
-        S *= V ** N
-        return S
-
-    return calc_sigma
-
-def build_full_sigma(N, G0, **kwargs):
-    funcs = []
+    '''
+    Generate all permutations +,-,+,+,-,...] for N binary choices,
+    and then select only those which are 'valid': those which never
+    return to zero momentum in the middle of the sequence, but do 
+    return to zero momentum at the end.
+    '''
+    selected = []
     for n in range(2, N+1, 2):
-        # print(n)
-        perms = select_permutations(n)
-        # print(perms)
-        terms = sigma_contributions(perms)
-        # print(terms)
-        funcs.append(build_sigma_N(terms, n, G0, **kwargs))
-    # print(funcs)
+        pm_array = generate_permutations(N=n)
+        for i in range(pm_array.shape[0]):
+            p = pm_array[i,:]
+            fail = False
+            for j in range(2,n):
+                if np.sum(p[:j]) == 0:
+                    fail = True
+            if np.sum(p) != 0:
+                fail = True
+            if not fail:
+                selected.append(p)
+    return selected
+
+
+def sigma_contributions(terms):
+    '''
+    Generate concise representations of the terms contributing to the self-energy
+    from the set of relevant permutations, corresponding to different diagrams.
+
+    Returns:
+    scalars: [s1, s2, ...]      Scalar multiplicity of each term
+    ns_mat: [ns1, ns2, ...]     Indices in G0_stored of relevant terms to select. Indices are related to momentum by:
+                                n        | 0  1  2   3 ...
+                                momentum | q -q 2q -2q ...                 
+    ms_mat: [ms1, ms2, ...]     Powers of each term. Row index m in G0_stored contains propagators to the power (m+1),
+                                so the correct row is selected by slicing with (ms_mat-1). Default value of ms_mat is 0 
+                                if that propagator does not appear (i.e., G0(k-nq)^0 = 1); final row of G0_stored is set 
+                                to 1s so that this case is handled correctly when slicing with index -1.
+                                The order of each term is given by the sum of ms_mat along axis 1 (i.e. the number of bare propagators), plus 1.
+    Example: s[i] = 2, ns_mat[i,:] = [0, 2, 4, 6], ms_mat[i,:] = [3, 3, 1, 0], order N = (3 + 3 + 1) + 1 = 8
+    Corresponds to self-energy contribution:
+        S = 2 x V^8 x G0(k+q)^3 x G0(k+2q)^3 x G0(k+3q)
+    These terms can be accessed by:
+        S = 2 x V^8 x G0_stored[2,0] x G0_stored[2,2] x G0_stored[0,4] (x G0_stored[-1,6])
+    '''
+    k_sum = [np.cumsum(v[:-1]) for v in terms]
+    counter_counts = Counter(frozenset(Counter(row).items()) for row in k_sum)
+
+    def process(k, v):
+        ns = np.array(list(dict(k).keys()))
+        ms = np.array(list(dict(k).values()))
+        return v, np.where(ns > 0, 2*ns - 2, -2*ns - 1), ms
     
-    def sigma(k, E, **kwargs):
-        S = 0.
-        for f in funcs:
-            S += f(k, E, **kwargs)
-        return S
+    entries = [process(k, v) for k, v in counter_counts.items()]
+    
+    max_len = max(len(ns) for _, ns, _ in entries)
+    num = len(entries)
+    
+    scalars = np.array([s for s, _, _ in entries])
+    ns_mat = np.zeros((num, max_len), dtype=int)
+    ms_mat = np.zeros((num, max_len), dtype=int)
+    # mask   = np.zeros((num, max_len), dtype=bool)
+    
+    for i, (_, ns, ms) in enumerate(entries):
+        L = len(ns)
+        ns_mat[i, :L] = ns
+        ms_mat[i, :L] = ms
+        # mask[i, :L] = True
+
+    return scalars, ns_mat, ms_mat#, mask
+
+
+def build_full_sigma(N, **kwargs):
+    terms = select_permutations(N)
+    scalars, ns_mat, ms_mat = sigma_contributions(terms)
+
+    def sigma(G0_stored, V=0.1, **kwargs):
+        gathered = G0_stored[ms_mat-1, ns_mat, :]
+        products = np.prod(gathered, axis=1)
+        V_powers = V ** (ms_mat.sum(axis=1)+1)
+        return np.dot(scalars * V_powers, products)
     
     return sigma
+
+# N = 6
+# perms = generate_permutations(N=N)
+# print(perms)
+# terms = select_permutations(N=N)
+# print(terms)
+# conts = sigma_contributions(terms)
+# print(conts)
+
+# sigma_new = build_full_sigma(N=N)
+
 
 
 # E = 0.5

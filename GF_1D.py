@@ -21,43 +21,71 @@ def v_tb(E, t=1, a=1, **kwargs):
     return 2*t*a*np.sin(k*a)
 
 
-def G0(k, E, E0=E_free, eps=1e-4, **kwargs):
-    return 1 / (E - E0(k, **kwargs) + 1j*eps)
+def G0(E, E0_vals,
+    #    k, E0=E_free, 
+       eps=1e-4, **kwargs):
+    # if E0_vals is None:
+    #     E0_vals = E0(k, **kwargs)
+    return 1 / (E - E0_vals + 1j*eps)
+    # return 1 / (E - E0(k, **kwargs) + 1j*eps)
 
 
-def G(k, E, Sigma_func=None, eps=1e-4, **kwargs):
+def G(E, E0_vals, G0_stored, Sigma_func=None, eps=1e-4, 
+    #   k,
+      **kwargs):
     if Sigma_func is None:
         Sigma = 0
     else:
-        Sigma = Sigma_func(k, E, **kwargs)
-    return G0(k, E - Sigma, eps=eps, **kwargs)
+        Sigma = Sigma_func(G0_stored, **kwargs)
+    return G0(E - Sigma, E0_vals, eps=eps, **kwargs)
 
 
-def Sigma_2(k, E, V=0.05, q=1, **kwargs):
-    if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
-    return np.abs(V)**2 * (G0(k-q, E, eps=0, **kwargs) + G0(k+q, E, eps=0, **kwargs))
+def Sigma_2(G0_stored, V=0.05, 
+            # q=1, G0_stored=None, 
+            **kwargs):
+    # if G0_stored is None:
+    #     # print('triggered')
+    #     if 'beta' in kwargs and 'a' in kwargs:
+    #         q = 2 * np.pi * kwargs['beta'] / kwargs['a']
+    #     G0_p1 = G0(k+q, E, eps=0, **kwargs)
+    #     G0_m1 = G0(k-q, E, eps=0, **kwargs)
+    # else:
+    #     # print('Triggered')
+    G0_p1, G0_m1 = G0_stored[0,:2,:]
+    return np.abs(V)**2 * (G0_p1 + G0_m1)
 
 
-def Sigma_4(k, E, V=0.05, q=1, **kwargs):
-    if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
-    S2 = Sigma_2(k, E, V=V, q=q, **kwargs)
-    S4 = np.abs(V)**4 * (G0(k-q, E, eps=0, **kwargs)**2 * G0(k-2*q, E, eps=0, **kwargs)
-                         + G0(k+q, E, eps=0, **kwargs)**2 * G0(k+2*q, E, eps=0, **kwargs))
+def Sigma_4(G0_stored, V=0.05, **kwargs):
+    # if 'beta' in kwargs and 'a' in kwargs:
+    #     q = 2 * np.pi * kwargs['beta'] / kwargs['a']
+    # S2 = Sigma_2(k, E, V=V, q=q, **kwargs)
+    # S4 = np.abs(V)**4 * (G0(k-q, E, eps=0, **kwargs)**2 * G0(k-2*q, E, eps=0, **kwargs)
+    #                      + G0(k+q, E, eps=0, **kwargs)**2 * G0(k+2*q, E, eps=0, **kwargs))
     # S4 += np.abs(V)**4 * (G0(k-G, E, eps=0)**2 * G0(k, E, eps=0)
     #                       + G0(k+G, E, eps=0)**2 * G0(k, E, eps=0))
+    S2 = Sigma_2(G0_stored, V=V, **kwargs)
+    G0_p1, G0_m1, G0_p2, G0_m2 = G0_stored[0,:4,:]
+    G0_p12, G0_m12 = G0_stored[1,:2,:]
+    S4 = np.abs(V)**4 * (G0_p12 * G0_p2 + G0_m12 * G0_m2)
     return S2 + S4
 
 
-def Sigma_6(k, E, V=0.05, q=1, **kwargs):
-    if 'beta' in kwargs and 'a' in kwargs:
-        q = 2 * np.pi * kwargs['beta'] / kwargs['a']
-    S4 = Sigma_4(k, E, V=V, q=q, **kwargs)
-    S6 = np.abs(V)**6 * (G0(k-q, E, eps=0, **kwargs)**2 * G0(k-2*q, E, eps=0, **kwargs)**2 * G0(k-3*q, E, eps=0, **kwargs)
-                         + G0(k+q, E, eps=0, **kwargs)**2 * G0(k+2*q, E, eps=0, **kwargs)**2 * G0(k+3*q, E, eps=0, **kwargs)
-                         + G0(k-q, E, eps=0, **kwargs)**3 * G0(k-2*q, E, eps=0, **kwargs)**2
-                         + G0(k+q, E, eps=0, **kwargs)**3 * G0(k+2*q, E, eps=0, **kwargs)**2)
+def Sigma_6(G0_stored, V=0.05, **kwargs):
+    # if 'beta' in kwargs and 'a' in kwargs:
+    #     q = 2 * np.pi * kwargs['beta'] / kwargs['a']
+    # S4 = Sigma_4(k, E, V=V, q=q, **kwargs)
+    # S6 = np.abs(V)**6 * (G0(k-q, E, eps=0, **kwargs)**2 * G0(k-2*q, E, eps=0, **kwargs)**2 * G0(k-3*q, E, eps=0, **kwargs)
+    #                      + G0(k+q, E, eps=0, **kwargs)**2 * G0(k+2*q, E, eps=0, **kwargs)**2 * G0(k+3*q, E, eps=0, **kwargs)
+    #                      + G0(k-q, E, eps=0, **kwargs)**3 * G0(k-2*q, E, eps=0, **kwargs)**2
+    #                      + G0(k+q, E, eps=0, **kwargs)**3 * G0(k+2*q, E, eps=0, **kwargs)**2)
+    S4 = Sigma_4(G0_stored, V=V, **kwargs)
+    G0_p1, G0_m1, G0_p2, G0_m2, G0_p3, G0_m3 = G0_stored[0,:6,:]
+    G0_p12, G0_m12, G0_p22, G0_m22 = G0_stored[1,:4,:]
+    G0_p13, G0_m13 = G0_stored[2,:2,:]
+    S6 = np.abs(V)**6 * (G0_p12 * G0_p22 * G0_p3
+                         + G0_p13 * G0_p22 
+                         + G0_m12 * G0_m22 * G0_m3
+                         + G0_m13 * G0_m22)
     return S4 + S6
 
 
@@ -113,11 +141,11 @@ def adaptive_params(E, v0=v_free, A=0.1, B=1, eps_min=1e-5, L_max=1e5, L_min=1e4
     L = B * 2 * np.pi * np.abs(v0(E, **kwargs)) / eps
     if L > L_max:
         if print_warnings:
-            print(f'Warning: L = {L:.3g} > L_max = {L_max:.3g}. Setting L = L_max.\n')
+            print(f'Warning: L = {L:.3g} > L_max = {L_max:.3g}. Setting L = L_max.')
         L = L_max
     elif L < L_min:
         if print_warnings:
-            print(f'Warning: low value L = {L} < L_min = {L_min:.3g}. Setting L = L_min.\n')
+            print(f'Warning: low value L = {L} < L_min = {L_min:.3g}. Setting L = L_min.')
         L = L_min
     return eps, L
         
@@ -130,16 +158,31 @@ def generate_k_vals(L, k_max=None, n=2, C=0.1, q=1, **kwargs):
     return k_vals
 
 
-def calc_dos_adaptive(E_vals, save=False, save_filename='Data.npz', **kwargs):
+def calc_dos_adaptive(E_vals, save=False, save_filename='Data.npz', E0=E_tb, 
+                      q=1., N=2, **kwargs):
     dos_vals = np.zeros_like(E_vals)
+    if 'beta' in kwargs and 'a' in kwargs:
+            q = 2 * np.pi * kwargs['beta'] / kwargs['a']
     for i, E in enumerate(tqdm(E_vals)):
-        eps, L = adaptive_params(E, **kwargs)
+        eps, L = adaptive_params(E, **kwargs)       # Set adaptive parameters
         k_vals = generate_k_vals(L, **kwargs)
-        # print(f'E = {E}')
-        # print(f'eps = {eps}, L = {L}')
-        # print(f'N_k = {k_vals.size}')
-        G_vals = G(k_vals, E, eps=eps, **kwargs)
-        dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) / L
+        E0_vals = E0(k_vals, **kwargs)
+        # Generate 'building blocks' G0(k+nq)^m (powers of bare propagators)
+        idxs = []
+        for j in range(1, int(N/2)+1):
+            idxs.append(j)
+            idxs.append(-j)
+        idxs = np.array(idxs)
+        G0_stored = np.array([np.real(G0(E, E0(k_vals[None,:] + idxs[:,None] * q, **kwargs), eps=0, **kwargs))])
+        for n in range(2, N+1, 2):
+            G0_new = np.zeros((1,*G0_stored.shape[1:]))
+            G0_new[0,:N-n,:] = G0_stored[-1,:N-n,:] * G0_stored[0,:N-n,:]
+            G0_stored = np.concatenate((G0_stored, G0_new))
+        # Set final row to ones; corresponds to G0(k+nq)^0, i.e. gives a location to point to when a 
+        # particular bare propagator is not involved in a given self-energy term
+        G0_stored = np.concatenate((G0_stored, np.ones((1, *G0_stored.shape[1:]))))
+        G_vals = G(E, E0_vals, G0_stored, eps=eps, **kwargs)        # Calculate GF; self-energy passed in kwargs as sigma_func
+        dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) / L      # Calculate DoS from GF
     if save:
         print('Saving -> ' + save_filename)
         save_kwargs = {k: v for k, v in kwargs.items() if callable(v) is False}
@@ -162,15 +205,15 @@ if __name__ == '__main__':
     # f = 'Green_Function/Data/1D/DoS_1D_S2_V0.01_GF_adaptive.npz'
     # calc_dos_adaptive(E_vals=E_vals, Sigma_func=Sigma_2, save=True, save_filename=f, A=0.001, B=10, C=0.1, n=2, 
     #                   V=0.01, k_max=1.1, L_max=2e5)
-    E_vals = np.linspace(-2.75, 2.75, 1000)
+    E_vals = np.linspace(-2, 2, 100)[1:-1]
     beta = 1 / np.sqrt(2)
     a = 1
     t = 1
     V = 0.9
-    f = 'Data/1D/TB/DoS_1D_AA_S2_t1_V0.9_GF.npz'
+    f = 'Data/1D/TB/DoS_1D_TB_t1_GF_test.npz'
     calc_dos_adaptive(E_vals=E_vals, 
                       E0=E_tb, v0=v_tb, t=t, a=a, 
-                      Sigma_func=Sigma_2, V=V, beta=beta,
+                      Sigma_func=None, beta=beta,
                       save=True, save_filename=f, 
-                      A=0.001, B=10, k_max=1.*np.pi, L_max=3e6, L_min=1e4,
-                      print_warnings=False)
+                      A=0.001, B=20, k_max=1.*np.pi, L_max=3e6, L_min=2e4,
+                      print_warnings=True, fix_epsilon=True, eps_fix=1e-3)
