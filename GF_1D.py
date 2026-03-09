@@ -30,13 +30,14 @@ def G0(E, E0_vals,
     # return 1 / (E - E0(k, **kwargs) + 1j*eps)
 
 
-def G(E, E0_vals, G0_stored, Sigma_func=None, eps=1e-4, 
+def G(E, E0_vals, G0_stored=None, Sigma=None, Sigma_func=None, eps=1e-4, 
     #   k,
       **kwargs):
-    if Sigma_func is None:
-        Sigma = 0
-    else:
-        Sigma = Sigma_func(G0_stored, **kwargs)
+    if Sigma is None:
+        if Sigma_func is None:
+            Sigma = 0
+        else:
+            Sigma = Sigma_func(G0_stored, **kwargs)
     return G0(E - Sigma, E0_vals, eps=eps, **kwargs)
 
 
@@ -181,13 +182,48 @@ def calc_dos_adaptive(E_vals, save=False, save_filename='Data.npz', E0=E_tb,
         # Set final row to ones; corresponds to G0(k+nq)^0, i.e. gives a location to point to when a 
         # particular bare propagator is not involved in a given self-energy term
         G0_stored = np.concatenate((G0_stored, np.ones((1, *G0_stored.shape[1:]))))
-        G_vals = G(E, E0_vals, G0_stored, eps=eps, **kwargs)        # Calculate GF; self-energy passed in kwargs as sigma_func
+        G_vals = G(E, E0_vals, G0_stored=G0_stored, eps=eps, **kwargs)        # Calculate GF; self-energy passed in kwargs as sigma_func
         dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) / L      # Calculate DoS from GF
     if save:
         print('Saving -> ' + save_filename)
         save_kwargs = {k: v for k, v in kwargs.items() if callable(v) is False}
         np.savez(save_filename, E_vals=E_vals, dos_vals=dos_vals, k_vals=k_vals, **save_kwargs)
     return dos_vals
+
+
+def calc_Sigma_recursive(g_mat, V=0.1, **kwargs):
+    N = int((g_mat.shape[0] - 1) / 2)
+    v = np.abs(V)**2
+    Sigma_plus = v / g_mat[2*N,:]
+    for i in range(N-1):
+        Sigma_plus = v / (g_mat[2*N-i-1,:] - Sigma_plus)
+    Sigma_minus = v / g_mat[0,:]
+    for i in range(N-1):
+        Sigma_minus = v / (g_mat[i+1,:] - Sigma_minus)
+    return Sigma_plus + Sigma_minus
+
+
+def calc_dos_recursive(E_vals, save=True, save_filename='Data.npz', E0=E_tb, 
+                       q=1., N=2, **kwargs):
+    dos_vals = np.zeros_like(E_vals)
+    if 'beta' in kwargs and 'a' in kwargs:
+            q = 2 * np.pi * kwargs['beta'] / kwargs['a']
+    Ns = np.arange(-N, N+1)
+    for i, E in enumerate(tqdm(E_vals)):
+        eps, L = adaptive_params(E, **kwargs)       # Set adaptive parameters
+        k_vals = generate_k_vals(L, **kwargs)
+        E0_vals = E0(k_vals, **kwargs)
+        g_mat = E - E0(k_vals[None,  :] + Ns[:, None]*q, **kwargs)
+        Sigma = calc_Sigma_recursive(g_mat, **kwargs)
+        G_vals = G(E, E0_vals, Sigma=Sigma, eps=eps)
+        dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) / L      # Calculate DoS from GF
+    if save:
+        print('Saving -> ' + save_filename)
+        save_kwargs = {k: v for k, v in kwargs.items() if callable(v) is False}
+        np.savez(save_filename, E_vals=E_vals, dos_vals=dos_vals, k_vals=k_vals, **save_kwargs)
+    return dos_vals
+
+
 
 
 
