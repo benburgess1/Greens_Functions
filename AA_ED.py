@@ -79,8 +79,8 @@ def update_dos(filename, **kwargs):
 
 
 if __name__ == '__main__':
-    N = 10000
-    V = 1.25
+    N = 20000
+    V = 0.5
     t = 1
     a = 1
     beta = 1/np.sqrt(2)
@@ -88,6 +88,7 @@ if __name__ == '__main__':
     # f = f'Data/ED/Spectrum_V{V:.3g}_N{N}.npz'
     # calc_spectrum(calc_dos=True, calc_IPR=False, 
     #               N=N, V=V, t=t, a=a, beta=beta, 
-    #               save=True, save_filename=f)
-    f1 = 'Data/ED/Spectrum_V0.5_N10000.npz'
-    update_dos(f1, eta=0.001, n_points=5000)
+    #               save=True, save_filename=f,
+    #               eta=0.001, n_points=5000)
+    f1 = 'Data/ED/Spectrum_V0.5_N20000.npz'
+    update_dos(f1, eta=0.0005, n_points=10000)

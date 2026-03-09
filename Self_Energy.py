@@ -55,8 +55,9 @@ def sigma_contributions(terms):
                                 so the correct row is selected by slicing with (ms_mat-1). Default value of ms_mat is 0 
                                 if that propagator does not appear (i.e., G0(k-nq)^0 = 1); final row of G0_stored is set 
                                 to 1s so that this case is handled correctly when slicing with index -1.
-                                The order of each term is given by the sum of ms_mat along axis 1 (i.e. the number of bare propagators), plus 1.
-    Example: s[i] = 2, ns_mat[i,:] = [0, 2, 4, 6], ms_mat[i,:] = [3, 3, 1, 0], order N = (3 + 3 + 1) + 1 = 8
+                                The order N of each term is given by the sum of ms_mat along axis 1 (i.e. the number of bare propagators), plus 1.
+    Example: 
+        s[i] = 2, ns_mat[i,:] = [0, 2, 4, 6], ms_mat[i,:] = [3, 3, 1, 0], order N = (3 + 3 + 1) + 1 = 8
     Corresponds to self-energy contribution:
         S = 2 x V^8 x G0(k+q)^3 x G0(k+2q)^3 x G0(k+3q)
     These terms can be accessed by:
@@ -78,15 +79,13 @@ def sigma_contributions(terms):
     scalars = np.array([s for s, _, _ in entries])
     ns_mat = np.zeros((num, max_len), dtype=int)
     ms_mat = np.zeros((num, max_len), dtype=int)
-    # mask   = np.zeros((num, max_len), dtype=bool)
     
     for i, (_, ns, ms) in enumerate(entries):
         L = len(ns)
         ns_mat[i, :L] = ns
         ms_mat[i, :L] = ms
-        # mask[i, :L] = True
 
-    return scalars, ns_mat, ms_mat#, mask
+    return scalars, ns_mat, ms_mat
 
 
 def build_full_sigma(N, **kwargs):
