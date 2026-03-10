@@ -216,7 +216,7 @@ if __name__ == '__main__':
     #          plot_theory=False)
     f1 = 'Data/ED/Spectrum_V0.5_N20000.npz'
     f2 = 'Data/1D/TB/DoS_1D_AA_N30_t1_V0.5_GF_recursive.npz'
-    f3 = 'Data/1D/TB/DoS_1D_AA_N30_t1_V0.5_GF_recursive_test3.npz'
+    f3 = 'Data/1D/TB/DoS_1D_AA_N30_t1_V0.5_GF_recursive_test4.npz'
     # f2 = 'Data/1D/TB/DoS_1D_AA_N2_t1_V0.5_GF_recursive.npz'
     # f3 = 'Data/1D/TB/DoS_1D_AA_N3_t1_V0.5_GF_recursive.npz'
     # f3 = 'Data/1D/TB/DoS_1D_AA_S8_t1_V0.5_GF.npz'

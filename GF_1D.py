@@ -126,7 +126,8 @@ def Sigma_4_2Component(k, E, V1=0.05, V2=0.025, q1=1, q2=1/np.sqrt(2), **kwargs)
 
 
 def adaptive_params(E, v0=v_free, A=0.1, B=1, eps_min=1e-5, L_max=1e5, L_min=1e4, 
-                    print_warnings=True, fix_epsilon=False, eps_fix=1e-4, **kwargs):
+                    print_warnings=True, fix_epsilon=False, eps_fix=1e-4,
+                    calc_L=True, **kwargs):
     # E = np.abs(E)
     # Choose epsilon based on upper bound set by E
     if not fix_epsilon:
@@ -138,6 +139,8 @@ def adaptive_params(E, v0=v_free, A=0.1, B=1, eps_min=1e-5, L_max=1e5, L_min=1e4
         if print_warnings:
             print(f'\nWarning: eps = {eps:.3g} < eps_min = {eps_min:.3g}. Setting eps = eps_min.')
         eps = eps_min
+    if not calc_L:
+        return eps
     # Choose L based on lower bound set by E and epsilon
     L = B * 2 * np.pi * np.abs(v0(E, **kwargs)) / eps
     if L > L_max:
@@ -211,15 +214,21 @@ def calc_dos_recursive(E_vals, save=True, save_filename='Data.npz', E0=E_tb,
     k_vals = generate_k_vals(L, **kwargs)
     Ns = np.arange(-N, N+1)
     E0_mat = E0(k_vals[None,  :] + Ns[:, None]*q, **kwargs)
+    # precompute all strides upfront
+    possible_strides = set(calc_stride(E, adaptive_params(E, calc_L=False, **kwargs), L, **kwargs) for E in E_vals)
+    E0_sliced = {s: np.ascontiguousarray(E0_mat[:, ::s]) for s in possible_strides}
+    g_bufs = {s: np.empty_like(arr) for s, arr in E0_sliced.items()}
     for i, E in enumerate(tqdm(E_vals)):
-        eps, _ = adaptive_params(E, **kwargs)       # Set adaptive parameters
-        # k_vals = generate_k_vals(L, **kwargs)
+        eps = adaptive_params(E, calc_L=False, **kwargs)       # Set adaptive parameters
         stride = calc_stride(E, eps, L, **kwargs)
-        print(f'E = {E}, stride = {stride}')
-        g_mat = E - E0_mat[:, ::stride]
+        E0_view = E0_sliced[stride]
+        np.subtract(E, E0_view, out=g_bufs[stride])
+        g_mat = g_bufs[stride]
+        # g_mat = E - E0_mat[:, ::stride]
         # g_mat = np.ascontiguousarray(E - E0_mat[:, ::stride])     Maybe implement this if running into memory issues in Sigma function
         Sigma = calc_Sigma_recursive(g_mat, **kwargs)
-        E0_vals = E0_mat[N, ::stride]
+        # E0_vals = E0_mat[N, ::stride]
+        E0_vals = E0_view[N]
         G_vals = G(E, E0_vals, Sigma=Sigma, eps=eps)
         dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) * stride / L      # Calculate DoS from GF
     if save:
@@ -235,10 +244,12 @@ def calc_stride(E, eps, L, v0=v_free, B=1, print_warnings=True,
     Dk = eps / (v0(E, **kwargs) + 1e-8)
     stride = int(np.floor(Dk / (dk*B)))
     if stride > stride_max:
-        print(f'Warning: stride = {stride:.3g} > stride_max = {stride_max:.3g}. Setting stride = stride_max.')
+        if print_warnings:
+            print(f'Warning: stride = {stride:.3g} > stride_max = {stride_max:.3g}. Setting stride = stride_max.')
         stride = stride_max
     elif stride < 1:
-        print(f'Warning: stride = {stride:.3g} < 1. Setting stride = 1.')
+        if print_warnings:
+            print(f'Warning: stride = {stride:.3g} < 1. Setting stride = 1.')
         stride = 1
     return stride
 
