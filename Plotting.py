@@ -216,13 +216,14 @@ if __name__ == '__main__':
     #          plot_theory=False)
     f1 = 'Data/ED/Spectrum_V0.5_N20000.npz'
     f2 = 'Data/1D/TB/DoS_1D_AA_N30_t1_V0.5_GF_recursive.npz'
+    f3 = 'Data/1D/TB/DoS_1D_AA_N30_t1_V0.5_GF_recursive_test3.npz'
     # f2 = 'Data/1D/TB/DoS_1D_AA_N2_t1_V0.5_GF_recursive.npz'
     # f3 = 'Data/1D/TB/DoS_1D_AA_N3_t1_V0.5_GF_recursive.npz'
-    f3 = 'Data/1D/TB/DoS_1D_AA_S8_t1_V0.5_GF.npz'
-    filenames = [f1, f3, f2]
+    # f3 = 'Data/1D/TB/DoS_1D_AA_S8_t1_V0.5_GF.npz'
+    filenames = [f1, f2, f3]
     plot_dos(filenames=filenames, 
             #  colors=['b', 'r', 'c', 'gold'], labels=['Recursive N=1', 'Recursive N=2', 'Recursive N=3', 'Explicit S4'],
-             colors=['b', 'r', 'c'], labels=['ED N=20000', 'Explicit S8', 'Recursive N=30'],
+             colors=['b', 'r', 'c'], labels=['ED N=20000', 'Recursive N=30', 'Recursive N=30 Updated'],
              normalise_E=False, ylim=None, xlim=None, 
              plot_title=True, title_params={'V':r'$V$'},
              xlab=r'$E$ / $t$',

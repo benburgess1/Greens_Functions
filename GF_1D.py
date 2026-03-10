@@ -204,19 +204,24 @@ def calc_Sigma_recursive(g_mat, V=0.1, **kwargs):
 
 
 def calc_dos_recursive(E_vals, save=True, save_filename='Data.npz', E0=E_tb, 
-                       q=1., N=2, **kwargs):
+                       q=1., N=2, L=1e6, **kwargs):
     dos_vals = np.zeros_like(E_vals)
     if 'beta' in kwargs and 'a' in kwargs:
             q = 2 * np.pi * kwargs['beta'] / kwargs['a']
+    k_vals = generate_k_vals(L, **kwargs)
     Ns = np.arange(-N, N+1)
+    E0_mat = E0(k_vals[None,  :] + Ns[:, None]*q, **kwargs)
     for i, E in enumerate(tqdm(E_vals)):
-        eps, L = adaptive_params(E, **kwargs)       # Set adaptive parameters
-        k_vals = generate_k_vals(L, **kwargs)
-        E0_vals = E0(k_vals, **kwargs)
-        g_mat = E - E0(k_vals[None,  :] + Ns[:, None]*q, **kwargs)
+        eps, _ = adaptive_params(E, **kwargs)       # Set adaptive parameters
+        # k_vals = generate_k_vals(L, **kwargs)
+        stride = calc_stride(E, eps, L, **kwargs)
+        print(f'E = {E}, stride = {stride}')
+        g_mat = E - E0_mat[:, ::stride]
+        # g_mat = np.ascontiguousarray(E - E0_mat[:, ::stride])     Maybe implement this if running into memory issues in Sigma function
         Sigma = calc_Sigma_recursive(g_mat, **kwargs)
+        E0_vals = E0_mat[N, ::stride]
         G_vals = G(E, E0_vals, Sigma=Sigma, eps=eps)
-        dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) / L      # Calculate DoS from GF
+        dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) * stride / L      # Calculate DoS from GF
     if save:
         print('Saving -> ' + save_filename)
         save_kwargs = {k: v for k, v in kwargs.items() if callable(v) is False}
@@ -224,7 +229,18 @@ def calc_dos_recursive(E_vals, save=True, save_filename='Data.npz', E0=E_tb,
     return dos_vals
 
 
-
+def calc_stride(E, eps, L, v0=v_free, B=1, print_warnings=True, 
+                stride_max=100, **kwargs):
+    dk = 2 * np.pi / L
+    Dk = eps / (v0(E, **kwargs) + 1e-8)
+    stride = int(np.floor(Dk / (dk*B)))
+    if stride > stride_max:
+        print(f'Warning: stride = {stride:.3g} > stride_max = {stride_max:.3g}. Setting stride = stride_max.')
+        stride = stride_max
+    elif stride < 1:
+        print(f'Warning: stride = {stride:.3g} < 1. Setting stride = 1.')
+        stride = 1
+    return stride
 
 
 
@@ -251,5 +267,7 @@ if __name__ == '__main__':
                       E0=E_tb, v0=v_tb, t=t, a=a, 
                       Sigma_func=None, beta=beta,
                       save=True, save_filename=f, 
-                      A=0.001, B=20, k_max=1.*np.pi, L_max=3e6, L_min=2e4,
-                      print_warnings=True, fix_epsilon=True, eps_fix=1e-3)
+                      A=0.001, B=20, k_max=1.*np.pi,
+                      L_max=3e6, L_min=2e4,
+                      print_warnings=True, fix_epsilon=True, eps_fix=1e-3
+                      )
