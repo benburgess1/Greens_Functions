@@ -15,26 +15,42 @@ def build_H(N=1000, t=1, V=0.1, a=1, beta=1/np.sqrt(2), phi=0, full_H=False,
         e = t * np.ones(N-1)
         return d, e
 
-def calc_spectrum(calc_dos=True, calc_IPR=True, 
-                  save=True, save_filename='Data.npz', **kwargs):
+def build_H_DAA(N=1000, t=1, V1=0.1, V2=0.1, a=1, beta1=1/np.sqrt(2), beta2=1/np.sqrt(3),
+                phi1=0, phi2=0, full_H=False, **kwargs):
+    x = np.arange(N) * a
+    if full_H:
+        H = np.diag(2*V1*np.cos(2*np.pi*beta1*x/a + phi1) + 2*V2*np.cos(2*np.pi*beta2*x/a + phi2))
+        for i in range(N-1):
+            H[i, i+1] = t
+            H[i+1, i] = t
+        return H
+    else:
+        d = 2*V1*np.cos(2*np.pi*beta1*x/a + phi1) + 2*V2*np.cos(2*np.pi*beta2*x/a + phi2)
+        e = t * np.ones(N-1)
+        return d, e
+
+def calc_spectrum(calc_dos=True, calc_IPR=True, save_evects=False,
+                  save=True, save_filename='Data.npz', 
+                  H_func=build_H, **kwargs):
     save_dict = {k:v for k, v in kwargs.items()}
-    d, e = build_H(full_H=False, **kwargs)
-    print('Performing diagonalisation... ', end='')
+    d, e = H_func(full_H=False, **kwargs)
+    print('Performing diagonalisation... ', end='', flush=True)
     if calc_IPR:
         evals, evects = eigh_tridiagonal(d, e, eigvals_only=False, lapack_driver='stemr')
-        save_dict['evects'] = evects
+        if save_evects:
+            save_dict['evects'] = evects
     else:
         evals = eigh_tridiagonal(d, e, eigvals_only=True, lapack_driver='sterf')
     save_dict['evals'] = evals
     print('Done')
     if calc_dos:
-        print('Calculating DoS... ', end='')
+        print('Calculating DoS... ', end='', flush=True)
         E_vals, dos_vals = dos_gaussian_stream(evals, **kwargs)
         save_dict['E_vals'] = E_vals
         save_dict['dos_vals'] = dos_vals
         print('Done')
     if calc_IPR:
-        print('Calculating IPR... ', end='')
+        print('Calculating IPR... ', end='', flush=True)
         ipr_vals = calc_ipr(evects)
         save_dict['ipr_vals'] = ipr_vals
         print('Done')
@@ -79,16 +95,35 @@ def update_dos(filename, **kwargs):
 
 
 if __name__ == '__main__':
-    N = 20000
-    V = 0.5
+    N_vals = np.array([1e3, 3e3, 1e4, 3e4, 1e5], dtype=np.int32)
+    V = 1.05
     t = 1
     a = 1
     beta = 1/np.sqrt(2)
-
-    # f = f'Data/ED/Spectrum_V{V:.3g}_N{N}.npz'
-    # calc_spectrum(calc_dos=True, calc_IPR=False, 
-    #               N=N, V=V, t=t, a=a, beta=beta, 
-    #               save=True, save_filename=f,
-    #               eta=0.001, n_points=5000)
-    f1 = 'Data/ED/Spectrum_V0.5_N20000.npz'
-    update_dos(f1, eta=0.0005, n_points=10000)
+    # for i, N in enumerate(N_vals):
+    #     print(f'Evaluating N = {N:.3g} ({i+1}/{len(N_vals)})')
+    #     f = f'Data/ED/Spectrum_V{V:.3g}_N{N:.3g}.npz'
+    #     calc_spectrum(calc_dos=True, calc_IPR=False, 
+    #                 N=N, V=V, t=t, a=a, beta=beta, 
+    #                 save=True, save_filename=f,
+    #                 eta=0.0005, n_points=5000,
+    #                 energy_window=(-3.2, 3.2))
+    # f1 = 'Data/ED/Spectrum_V0.5_N20000.npz'
+    # f1 = 'Data/ED/Spectrum_V0.95_N3e+05.npz'
+    # update_dos(f1, eta=8e-5, n_points=5000, energy_window=(-2.7,2.7))
+    N = int(1e4)
+    t = 1
+    a = 1
+    beta1 = 1/np.sqrt(2)
+    beta2 = 1/np.sqrt(3)
+    V2 = 0.5
+    V1_vals = np.array([0., 0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 1.])
+    for V1 in V1_vals:
+        f = f'Data/ED/Spectrum_DAA_V1{V1:.3g}_V2{V2:.3g}_N{N:.3g}.npz'
+        calc_spectrum(calc_dos=True, calc_IPR=True, 
+                        N=N, t=t, a=a, 
+                        H_func=build_H_DAA,
+                        beta1=beta1, beta2=beta2,
+                        V1=V1, V2=V2,
+                        save=True, save_filename=f,
+                        eta=0.001, n_points=5000)
