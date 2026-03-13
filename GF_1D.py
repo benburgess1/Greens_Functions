@@ -207,34 +207,40 @@ def calc_Sigma_recursive(g_mat, V=0.1, **kwargs):
 
 
 def calc_dos_recursive(E_vals, save=True, save_filename='Data.npz', E0=E_tb, 
-                       q=1., N=2, L=1e6, **kwargs):
+                       q=1., N=2, L=1e6, fix_k=False, **kwargs):
     dos_vals = np.zeros_like(E_vals)
     if 'beta' in kwargs and 'a' in kwargs:
             q = 2 * np.pi * kwargs['beta'] / kwargs['a']
     k_vals = generate_k_vals(L, **kwargs)
     Ns = np.arange(-N, N+1)
     E0_mat = E0(k_vals[None,  :] + Ns[:, None]*q, **kwargs)
+    if not fix_k:
     # precompute all strides upfront
-    possible_strides = set(calc_stride(E, adaptive_params(E, calc_L=False, **kwargs), L, **kwargs) for E in E_vals)
-    E0_sliced = {s: np.ascontiguousarray(E0_mat[:, ::s]) for s in possible_strides}
-    g_bufs = {s: np.empty_like(arr) for s, arr in E0_sliced.items()}
+        possible_strides = set(calc_stride(E, adaptive_params(E, calc_L=False, **kwargs), L, **kwargs) for E in E_vals)
+        E0_sliced = {s: np.ascontiguousarray(E0_mat[:, ::s]) for s in possible_strides}
+        g_bufs = {s: np.empty_like(arr) for s, arr in E0_sliced.items()}
     for i, E in enumerate(tqdm(E_vals)):
         eps = adaptive_params(E, calc_L=False, **kwargs)       # Set adaptive parameters
-        stride = calc_stride(E, eps, L, **kwargs)
-        E0_view = E0_sliced[stride]
-        np.subtract(E, E0_view, out=g_bufs[stride])
-        g_mat = g_bufs[stride]
+        if not fix_k:
+            stride = calc_stride(E, eps, L, **kwargs)
+            E0_view = E0_sliced[stride]
+            np.subtract(E, E0_view, out=g_bufs[stride])
+            g_mat = g_bufs[stride]
+            E0_vals = E0_view[N]
+        else:
+            g_mat = E - E0_mat
+            E0_vals = E0_mat[N,:]
+            stride = 1.
         # g_mat = E - E0_mat[:, ::stride]
         # g_mat = np.ascontiguousarray(E - E0_mat[:, ::stride])     Maybe implement this if running into memory issues in Sigma function
         Sigma = calc_Sigma_recursive(g_mat, **kwargs)
         # E0_vals = E0_mat[N, ::stride]
-        E0_vals = E0_view[N]
         G_vals = G(E, E0_vals, Sigma=Sigma, eps=eps)
         dos_vals[i] = np.sum(np.imag(G_vals)) * (-1/np.pi) * stride / L      # Calculate DoS from GF
     if save:
         print('Saving -> ' + save_filename)
         save_kwargs = {k: v for k, v in kwargs.items() if callable(v) is False}
-        np.savez(save_filename, E_vals=E_vals, dos_vals=dos_vals, k_vals=k_vals, **save_kwargs)
+        np.savez(save_filename, E_vals=E_vals, dos_vals=dos_vals, k_vals=k_vals, L=L, q=q, N=N, **save_kwargs)
     return dos_vals
 
 
